@@ -124,10 +124,6 @@ You can verify each flag by checking the files I found them in.
 
 ## Try to Beat My Score
 
-- **My Score**: 8 out of 9 flags (88.9%)
-- **Challenge**: Can you find FLAG_04?
-- **Hint**: Look for files named "unknown" and check the MD5 hash: `4106b08459f09a84018881a1d6bd25b5`
-
----
+- **My Score**: 9 out of 9 flags 
 
 **Download all my files and check my work! Use the code above to verify my findings!**
