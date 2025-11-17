@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CTF 通用解码工具</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-8 flex justify-center items-center min-h-screen">
+    <div class="w-full max-w-2xl bg-white p-6 sm:p-8 rounded-xl shadow-2xl">
+        <h1 class="text-3xl font-bold text-center text-indigo-700 mb-6">🚩 CTF 通用解码工具</h1>
+        <p class="text-gray-600 text-center mb-8">请将您从图片中提取到的可疑字符串（如 Base64、Hex 编码）粘贴到下方进行尝试解码。</p>
+
+        <!-- 输入区域 -->
+        <div class="mb-6">
+            <label for="inputString" class="block text-sm font-medium text-gray-700 mb-2">输入编码字符串:</label>
+            <textarea id="inputString" rows="5" placeholder="例如：RkxBR19wcm9ncmVzc39Mb3cgc3BlZWQgZGF0YSB0cmFuc2ZlciBzaWduYWwgZGV0ZWN0ZWQgYnkgLS0+IHN0ZWdzb2x2ZXJtYW59"
+                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 shadow-inner">RkxBR19maW5hbF9wcmV2aWV3e1N0ZWdhbm9ncmFwaHlfTWFzdGVyX01hZGVfRmxhZ19JRF8zNDIxfQ==</textarea>
+        </div>
+
+        <!-- 解码按钮 -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+            <button onclick="decodeAndDisplay('Base64')"
+                class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 rounded-lg shadow-md transition duration-200 transform hover:scale-[1.02] active:scale-[0.98]">
+                Base64 解码
+            </button>
+            <button onclick="decodeAndDisplay('Hex')"
+                class="bg-pink-600 hover:bg-pink-700 text-white font-semibold py-3 px-4 rounded-lg shadow-md transition duration-200 transform hover:scale-[1.02] active:scale-[0.98]">
+                十六进制 (Hex) 解码
+            </button>
+            <button onclick="decodeAndDisplay('ROT13')"
+                class="bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-4 rounded-lg shadow-md transition duration-200 transform hover:scale-[1.02] active:scale-[0.98]">
+                ROT13 解码
+            </button>
+        </div>
+
+        <!-- 输出区域 -->
+        <div class="p-4 bg-indigo-50 border-2 border-indigo-200 rounded-lg">
+            <h3 class="text-lg font-medium text-indigo-800 mb-2">解码结果:</h3>
+            <pre id="outputResult" class="whitespace-pre-wrap break-words text-gray-800 text-sm font-mono">
+[Base64 解码结果]
+FLAG_final_preview{Steganography_Master_Made_Flag_ID_3421}
+</pre>
+        </div>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Automatically run Base64 decode on load
+            decodeAndDisplay('Base64');
+        });
+
+        function displayMessage(message, isError = false) {
+            const output = document.getElementById('outputResult');
+            output.textContent = message;
+            output.className = isError 
+                ? 'whitespace-pre-wrap break-words text-red-600 text-sm font-mono' 
+                : 'whitespace-pre-wrap break-words text-gray-800 text-sm font-mono';
+        }
+
+        function decodeBase64(str) {
+            try {
+                if (!str) return "错误: 输入不能为空。";
+                // 移除空格并添加 Base64 所需的填充
+                let cleanedStr = str.trim().replace(/\s/g, '');
+                const padding = cleanedStr.length % 4;
+                if (padding !== 0) {
+                    cleanedStr += '='.repeat(4 - padding);
+                }
+
+                const decoded = atob(cleanedStr);
+                return decoded;
+            } catch (e) {
+                return "错误: Base64 格式错误或包含非法字符。";
+            }
+        }
+
+        function decodeHex(str) {
+            try {
+                if (!str) return "错误: 输入不能为空。";
+                const hex = str.trim().replace(/\s/g, '');
+                if (!/^[0-9a-fA-F]+$/.test(hex) || hex.length % 2 !== 0) {
+                    return "错误: 十六进制格式错误 (必须是偶数位且只包含 0-9/a-f)。";
+                }
+                
+                let result = '';
+                for (let i = 0; i < hex.length; i += 2) {
+                    result += String.fromCharCode(parseInt(hex.substring(i, i + 2), 16));
+                }
+                return result;
+            } catch (e) {
+                return "错误: 十六进制解码失败。";
+            }
+        }
+
+        function decodeROT13(str) {
+            if (!str) return "错误: 输入不能为空。";
+            return str.replace(/[a-zA-Z]/g, function(c) {
+                return String.fromCharCode((c <= 'Z' ? 90 : 122) >= (c = c.charCodeAt(0) + 13) ? c : c - 26);
+            });
+        }
+
+        function decodeAndDisplay(method) {
+            const inputString = document.getElementById('inputString').value;
+            let result = '';
+
+            if (!inputString) {
+                 displayMessage("请输入您从图片中提取到的编码字符串！", true);
+                 return;
+            }
+
+            switch (method) {
+                case 'Base64':
+                    result = decodeBase64(inputString);
+                    break;
+                case 'Hex':
+                    result = decodeHex(inputString);
+                    break;
+                case 'ROT13':
+                    result = decodeROT13(inputString);
+                    break;
+                default:
+                    result = '未知的解码方法。';
+            }
+
+            if (result.startsWith("错误:")) {
+                displayMessage(result, true);
+            } else {
+                displayMessage(`[${method} 解码结果]\n${result}`);
+            }
+        }
+
+    </script>
+</body>
+</html>
