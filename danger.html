@@ -1,0 +1,303 @@
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+
+<div id="app-root">
+    </div>
+
+<style>
+    [lucide] {
+        stroke-width: 2.5;
+    }
+    /* 解决 CodePen 默认的 body 填充 */
+    body {
+        padding: 0;
+        margin: 0;
+    }
+</style>
+
+<script>
+    // 模拟 React 组件状态和数据
+    let user = null;
+    let username = '';
+    let password = '';
+    let tab = 'login';
+    let profileId = '';
+    let msg = '';
+    
+    // 模拟数据库
+    const users = [
+        { id: 1, username: 'admin', password: 'admin123', role: 'admin', email: 'admin@company.com', apiKey: 'sk_live_ABC123' },
+        { id: 2, username: 'john', password: 'john123', role: 'user', email: 'john@company.com', apiKey: 'sk_live_USER001' }
+    ];
+    
+    let posts = [
+        { id: 1, content: 'Welcome!' }
+    ];
+    
+    let files = [];
+
+    // 辅助函数：重新渲染界面
+    function render() {
+        const root = document.getElementById('app-root');
+        // 将主容器的背景和最小高度类放在这里
+        root.className = "min-h-screen bg-red-50 p-8"; 
+        root.innerHTML = user ? renderDashboard() : renderLogin();
+        lucide.createIcons(); // 重新渲染图标
+        
+        // 绑定事件 (每次渲染后重新绑定)
+        if (user) {
+            // 绑定 Tab 切换事件
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    tab = e.target.getAttribute('data-tab');
+                    render();
+                });
+            });
+            // 绑定 Logout 事件
+            document.getElementById('logout-btn').addEventListener('click', logout);
+
+            if (tab === 'profiles') {
+                document.getElementById('profile-id-input').addEventListener('input', (e) => {
+                    profileId = e.target.value;
+                });
+                document.getElementById('view-profile-btn').addEventListener('click', viewProfile);
+            }
+            if (tab === 'messages') {
+                document.getElementById('message-textarea').addEventListener('input', (e) => {
+                    msg = e.target.value;
+                });
+                document.getElementById('post-msg-btn').addEventListener('click', postMsg);
+            }
+            if (tab === 'upload') {
+                document.getElementById('file-upload-input').addEventListener('change', uploadFile);
+            }
+        } else {
+            // 绑定 Login 事件
+            document.getElementById('username-input').addEventListener('input', (e) => {
+                username = e.target.value;
+            });
+            document.getElementById('password-input').addEventListener('input', (e) => {
+                password = e.target.value;
+            });
+            document.getElementById('login-btn').addEventListener('click', login);
+        }
+    }
+
+    // --- 核心功能 (与 React 版本一致) ---
+
+    function createToken(user) {
+        const data = btoa(JSON.stringify({ id: user.id, role: user.role }));
+        return `token_${data}`;
+    }
+
+    function login() {
+        const found = users.find(u => u.username === username && u.password === password);
+        if (found) {
+            user = { ...found, token: createToken(found) };
+            tab = 'dashboard';
+            console.log('Login:', found.apiKey); // 漏洞：在控制台打印敏感数据
+            render();
+        } else {
+            alert('Invalid login');
+        }
+    }
+
+    function logout() {
+        user = null;
+        tab = 'login';
+        username = '';
+        password = '';
+        profileId = '';
+        msg = '';
+        render();
+    }
+
+    function viewProfile() {
+        const target = users.find(u => u.id === parseInt(profileId));
+        if (target) {
+            // 漏洞：IDOR (Insecure Direct Object Reference) - 可以查看任何用户的 API Key
+            alert(`User: ${target.username}\nEmail: ${target.email}\nAPI Key: ${target.apiKey}`);
+        } else {
+            alert('User not found');
+        }
+    }
+
+    function postMsg() {
+        if (msg.trim()) {
+            posts.push({ id: posts.length + 1, content: msg });
+            msg = ''; // 清空输入框
+            render();
+        }
+    }
+
+    function uploadFile(e) {
+        const file = e.target.files[0];
+        if (file) {
+            files.push({ name: file.name, size: file.size });
+            alert(`Uploaded: ${file.name}`); // 漏洞：没有上传文件类型校验
+            render();
+        }
+    }
+
+    // --- 渲染视图函数 ---
+
+    function renderLogin() {
+        return `
+            <div class="max-w-md mx-auto bg-white rounded-lg shadow-xl p-8">
+                <div class="flex items-center justify-center mb-6">
+                    <i lucide="alert-circle" class="w-10 h-10 text-red-500 mr-2"></i>
+                    <h1 class="text-2xl font-bold">Vulnerable App</h1>
+                </div>
+                
+                <div class="bg-red-50 border-l-4 border-red-500 p-3 mb-4 text-sm">
+                    <p class="text-red-700 font-semibold">⚠️ This app has security bugs</p>
+                </div>
+
+                <input
+                    id="username-input"
+                    type="text"
+                    value="${username}"
+                    class="w-full px-4 py-2 border rounded mb-3"
+                    placeholder="Username (admin or john)"
+                />
+                
+                <input
+                    id="password-input"
+                    type="password"
+                    value="${password}"
+                    class="w-full px-4 py-2 border rounded mb-3"
+                    placeholder="Password"
+                />
+
+                <button id="login-btn" class="w-full bg-red-500 text-white py-2 rounded hover:bg-red-600">
+                    Login
+                </button>
+
+                <div class="mt-4 p-3 bg-gray-50 rounded text-xs">
+                    <p>Test: admin/admin123 or john/john123</p>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderDashboard() {
+        const tabsHtml = ['dashboard', 'profiles', 'messages', 'upload'].map(t => `
+            <button
+                data-tab="${t}"
+                class="tab-button px-4 py-2 ${tab === t ? 'bg-red-50 border-b-2 border-red-500' : ''}"
+            >
+                ${t.charAt(0).toUpperCase() + t.slice(1)}
+            </button>
+        `).join('');
+
+        let contentHtml = '';
+        if (tab === 'dashboard') {
+            contentHtml = `
+                <div>
+                    <h2 class="text-xl font-bold mb-4">Dashboard</h2>
+                    <div class="bg-yellow-50 border-l-4 border-yellow-400 p-3 text-sm">
+                        <p class="font-semibold">🔍 Find the bugs in this app!</p>
+                    </div>
+                </div>
+            `;
+        } else if (tab === 'profiles') {
+            contentHtml = `
+                <div>
+                    <h2 class="text-xl font-bold mb-4">View Profiles (IDOR Bug)</h2>
+                    <div class="bg-red-50 p-3 mb-4 text-sm">
+                        <p class="text-red-700">🚨 You can view ANY user's data</p>
+                    </div>
+                    <input
+                        id="profile-id-input"
+                        type="text"
+                        value="${profileId}"
+                        class="border px-4 py-2 rounded mr-2"
+                        placeholder="User ID (1 or 2)"
+                    />
+                    <button id="view-profile-btn" class="bg-red-500 text-white px-4 py-2 rounded">
+                        View
+                    </button>
+                </div>
+            `;
+        } else if (tab === 'messages') {
+            const postsHtml = posts.map(p => `
+                <div key="${p.id}" class="bg-gray-50 p-3 rounded">
+                    <div style="word-wrap: break-word;">${p.content}</div>
+                </div>
+            `).join('');
+
+            contentHtml = `
+                <div>
+                    <h2 class="text-xl font-bold mb-4">Messages (XSS Bug)</h2>
+                    <div class="bg-red-50 p-3 mb-4 text-sm">
+                        <p class="text-red-700">🚨 Try: &lt;img src=x onerror=alert('XSS')&gt;</p>
+                    </div>
+                    <textarea
+                        id="message-textarea"
+                        class="w-full border px-4 py-2 rounded mb-2"
+                        rows="3"
+                    >${msg}</textarea>
+                    <button id="post-msg-btn" class="bg-red-500 text-white px-4 py-2 rounded">Post</button>
+                    
+                    <div class="mt-4 space-y-2">
+                        ${postsHtml}
+                    </div>
+                </div>
+            `;
+        } else if (tab === 'upload') {
+            const filesHtml = files.map((f, i) => `
+                <div key="${i}" class="bg-gray-50 p-2 rounded mb-2">
+                    <p class="text-sm">${f.name} (${f.size} bytes)</p>
+                </div>
+            `).join('');
+
+            contentHtml = `
+                <div>
+                    <h2 class="text-xl font-bold mb-4">Upload (No Validation)</h2>
+                    <div class="bg-red-50 p-3 mb-4 text-sm">
+                        <p class="text-red-700">🚨 Upload any file type!</p>
+                    </div>
+                    <input id="file-upload-input" type="file" class="mb-4" />
+                    
+                    ${filesHtml}
+                </div>
+            `;
+        }
+
+        return `
+            <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-xl">
+                <div class="bg-red-500 text-white p-4 flex justify-between items-center">
+                    <div>
+                        <h1 class="text-xl font-bold">Vulnerable App</h1>
+                        <p class="text-sm">User: ${user.username}</p>
+                    </div>
+                    <button id="logout-btn" class="bg-red-600 px-4 py-2 rounded">Logout</button>
+                </div>
+
+                <div class="flex border-b">
+                    ${tabsHtml}
+                </div>
+
+                <div class="p-6">
+                    ${contentHtml}
+                </div>
+
+                <div class="p-6 bg-gray-50 border-t">
+                    <h3 class="font-bold mb-2">Known Bugs:</h3>
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        <div class="bg-red-100 p-2 rounded">IDOR</div>
+                        <div class="bg-red-100 p-2 rounded">No Access Control</div>
+                        <div class="bg-red-100 p-2 rounded">XSS</div>
+                        <div class="bg-red-100 p-2 rounded">No Upload Validation</div>
+                        <div class="bg-orange-100 p-2 rounded">Weak JWT (123456)</div>
+                        <div class="bg-orange-100 p-2 rounded">Data in Console</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    // 首次渲染应用
+    document.addEventListener('DOMContentLoaded', render);
+
+</script>
